@@ -17,6 +17,7 @@ class ItemViewModel: ObservableObject {
     @Published var itemsBrands: [String] = []
     
     @Published var selectedCategories: Set<String> = []
+    @Published var searchText: String = ""
     
     private var viewContext: NSManagedObjectContext
     
@@ -35,7 +36,7 @@ class ItemViewModel: ObservableObject {
             
             do {
                 self.items = try viewContext.fetch(request)
-                itemFilter.updateFilteredItems(allItems: self.items)
+                itemFilter.updateFilteredItems(allItems: self.items, searchText: self.itemFilter.searchText)
             } catch {
                 print("Error fetching items: \(error)")
             }
@@ -90,18 +91,25 @@ class ItemViewModel: ObservableObject {
     struct ItemFilterManager {
         var selectedCategories: Set<String> = []
         var filteredItems: [Item] = []
+        var searchText: String = ""
         
         // Mettre à jour les items filtrés
-        mutating func updateFilteredItems(allItems: [Item]) {
-            if selectedCategories.isEmpty {
-                filteredItems = allItems
-            } else {
-                filteredItems = allItems.filter { item in
-                    guard let categoryName = item.category?.name else { return false }
-                    return selectedCategories.contains(categoryName)
-                }
+          mutating func updateFilteredItems(allItems: [Item], searchText: String) {
+              self.searchText = searchText
+              filteredItems = allItems.filter { item in
+                  // Vérifier si l'item correspond à une catégorie sélectionnée
+                  guard let categoryName = item.category?.name else { return false }
+                  let matchesCategory = selectedCategories.isEmpty || selectedCategories.contains(categoryName)
+                  
+                  // Vérifier si l'item correspond au texte de recherche (nom ou marque)
+                  let matchesSearchText = searchText.isEmpty ||
+                                          (item.name?.lowercased().contains(searchText.lowercased()) ?? false) ||
+                                          (item.brand?.lowercased().contains(searchText.lowercased()) ?? false)
+                  
+                  // L'item doit correspondre aux deux critères (catégorie et recherche)
+                  return matchesCategory && matchesSearchText
+              }
             }
-        }
         
         // Mettre à jour les catégories sélectionnées
         mutating func toggleCategorySelection(category: String) {
@@ -199,12 +207,6 @@ class ItemViewModel: ObservableObject {
         itemsCategories = Array(allCategories).sorted()
     }
     
-    // Filtrage des items par catégorie
-    func filterItems() {
-        itemFilterManager.updateFilteredItems(allItems: itemManager.items)
-        filteredItems = itemFilterManager.filteredItems
-    }
-    
     // Mettre à jour la sélection des catégories
     func toggleCategorySelection(category: String) {
         itemFilterManager.toggleCategorySelection(category: category)
@@ -223,6 +225,19 @@ class ItemViewModel: ObservableObject {
         let uuid = UUID()
         categoryManager.addCategory(uuid: uuid, name: name)
         fetchCategories()
+    }
+    
+    // Mettre à jour le texte de recherche
+    func updateSearchText(_ searchText: String) {
+        self.searchText = searchText // Mettre à jour le texte de recherche dans le viewModel
+        filterItems() // Appliquer immédiatement le filtre
+    }
+
+    // Filtrage des items par catégorie et texte de recherche
+    func filterItems() {
+        // Passez le texte de recherche actuel à ItemFilterManager
+        itemFilterManager.updateFilteredItems(allItems: itemManager.items, searchText: searchText)
+        filteredItems = itemFilterManager.filteredItems
     }
     
     func deleteItem(item: Item) {

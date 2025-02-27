@@ -13,13 +13,21 @@ struct DressingView: View {
     var body: some View {
         NavigationView {
             VStack {
-                CategoryFilterView(viewModel: viewModel)
+                VStack(alignment: .leading) {
+                    SearchView(viewModel: viewModel)
+                        .padding(.horizontal)
+                    CategoryFilterView(viewModel: viewModel)
+                        .padding(.horizontal)
+                }
+                
                 
                 // Affichage des items filtrés
                 if viewModel.filteredItems.isEmpty {
-                    Text("Aucun item à afficher")
+                    Spacer()
+                    Text("Aucun vêtement à afficher")
                         .foregroundColor(.gray)
                         .padding()
+                    Spacer()
                 } else {
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {

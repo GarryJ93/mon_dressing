@@ -28,7 +28,6 @@ struct CategoryFilterView: View {
                 }
             }
         }
-        .padding()
     }
 }
 
